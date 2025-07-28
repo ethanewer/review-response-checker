@@ -135,7 +135,7 @@ def print_scores(name: str, scores: dict[str, float]) -> None:
     table.add_column("Score (%)", justify="center")
 
     for comment, score in scores.items():
-        icon = "✅" if score == 100 else ("⚠️" if score > 50 else "❌")
+        icon = "✅" if score > 80 else "❌"
         table.add_row(comment.strip() + "\n", f"{score:.0f}% {icon}")
 
     panel = Panel(table, title=f"{name} Response Coverage", expand=False, border_style="green")
