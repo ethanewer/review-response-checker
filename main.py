@@ -131,9 +131,8 @@ async def process_review(review: str, response: str, paper: Optional[bytes], n=4
 
 def print_scores(name: str, scores: dict[str, float]) -> None:
     table = Table(show_header=True, header_style="bold cyan")
-    table.add_column("Comment", style="dim", width=80)
-    table.add_column("Addressed (%)", justify="center")
-    table.add_column("Score", justify="center")
+    table.add_column("Review Comment", style="dim", width=80)
+    table.add_column("Score (%)", justify="center")
 
     for comment, score in scores.items():
         icon = "✅" if score == 100 else ("⚠️" if score > 50 else "❌")
