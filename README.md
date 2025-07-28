@@ -11,8 +11,8 @@ A CLI tool to validate that every review file has a corresponding response file.
    ```sh
    git clone https://github.com/ethanewer/review-response-checker.git
    cd review-response-checker
-    uv venv --python=3.11 .venv
-    uv pip install -e .
+   uv venv --python=3.11 .venv
+   uv pip install -e .
    ```
 ---
 
