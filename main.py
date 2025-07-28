@@ -18,9 +18,10 @@ client = AsyncClient()
 
 def parse_args() -> Namespace:
     parser = ArgumentParser()
-    parser.add_argument("--responses", type=str, default="responses", help="Path to review responses.")
-    parser.add_argument("--reviews", type=str, default="reviews", help="Path to reviews.")
-    parser.add_argument("--paper", type=str, default="main.pdf", help="Path to paper.")
+    parser.add_argument("--reviews", type=str, help="Path to reviews.")
+    parser.add_argument("--responses", type=str, help="Path to review responses.")
+    parser.add_argument("--paper", type=str, default=None, help="Path to paper.")
+    parser.add_argument("--n", type=int, default=8, help="Number of trials for judge LLM.")
     return parser.parse_known_args()[0]
 
 
@@ -47,14 +48,19 @@ async def parse_review(review: str) -> list[str]:
         },
     ]
 
-    completion = await client.chat.completions.parse(
-        model="gpt-4.1",
-        messages=messages,  # type: ignore
-        response_format=ParseReviewOutput,
-    )
+    for i in range(4):
+        try:
+            completion = await client.chat.completions.parse(
+                model="gpt-4.1",
+                messages=messages,  # type: ignore
+                response_format=ParseReviewOutput,
+            )
+            assert completion.choices[0].message.parsed is not None
+            return completion.choices[0].message.parsed.comments
+        except Exception:
+            await asyncio.sleep(2**i)
 
-    assert completion.choices[0].message.parsed is not None
-    return completion.choices[0].message.parsed.comments
+    raise Exception("`parse_review` max retries exhausted.")
 
 
 async def check_response(comment: str, response: str, paper: Optional[bytes] = None) -> bool:
@@ -98,18 +104,22 @@ async def check_response(comment: str, response: str, paper: Optional[bytes] = N
         },
     ]
 
-    completion = await client.chat.completions.parse(
-        model="o4-mini",
-        messages=messages,  # type: ignore
-        reasoning_effort="high",
-        response_format=CheckResponseOutput,
-    )
+    for i in range(4):
+        try:
+            completion = await client.chat.completions.parse(
+                model="gpt-4.1",
+                messages=messages,  # type: ignore
+                response_format=CheckResponseOutput,
+            )
+            assert completion.choices[0].message.parsed is not None
+            return completion.choices[0].message.parsed.comment_is_fully_addressed
+        except Exception:
+            await asyncio.sleep(2**i)
 
-    assert completion.choices[0].message.parsed is not None
-    return completion.choices[0].message.parsed.comment_is_fully_addressed
+    raise Exception("`check_response` max retries exhausted.")
 
 
-async def process_review(review: str, response: str, paper: Optional[bytes], n=16) -> dict[str, float]:
+async def process_review(review: str, response: str, paper: Optional[bytes], n=4) -> dict[str, float]:
     comments = (await parse_review(review)) * n
     results = await asyncio.gather(*[check_response(comment, response, paper) for comment in comments])
     scores = defaultdict(int)
@@ -119,17 +129,17 @@ async def process_review(review: str, response: str, paper: Optional[bytes], n=1
     return {comment: 100 * score / n for comment, score in scores.items()}
 
 
-def print_scores(scores: dict[str, float]) -> None:
+def print_scores(name: str, scores: dict[str, float]) -> None:
     table = Table(show_header=True, header_style="bold cyan")
-    table.add_column("Comment", style="dim", width=60)
+    table.add_column("Comment", style="dim", width=80)
     table.add_column("Addressed (%)", justify="center")
     table.add_column("Score", justify="center")
 
     for comment, score in scores.items():
         icon = "✅" if score == 100 else ("⚠️" if score > 50 else "❌")
-        table.add_row(comment, f"{score:.0f}% {icon}")
+        table.add_row(comment.strip() + "\n", f"{score:.0f}% {icon}")
 
-    panel = Panel(table, title="Response Coverage", expand=False, border_style="green")
+    panel = Panel(table, title=f"{name} Response Coverage", expand=False, border_style="green")
     console.print(panel)
 
 
@@ -142,11 +152,10 @@ async def main() -> None:
     assert reviews.keys() == responses.keys(), "Every review file must have a response file with the same name."
     keys = reviews.keys()
 
-    results = await asyncio.gather(*[process_review(reviews[key], responses[key], paper) for key in keys])
+    results = await asyncio.gather(*[process_review(reviews[key], responses[key], paper, args.n) for key in keys])
 
     for key, scores in zip(keys, results):
-        console.rule(f"[bold blue]{key.strip('.txt')}")
-        print_scores(scores)
+        print_scores(key.strip(".txt"), scores)
 
 
 if __name__ == "__main__":
