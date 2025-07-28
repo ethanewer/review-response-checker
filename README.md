@@ -42,7 +42,7 @@ uv run main.py --reviews path/to/reviews/dir \
                --responses path/to/responses/dir
 ```
 
-### With paper pdf and specific number if trials with judge LLM
+### With paper pdf and specific number of trials with judge LLM
 
 ```sh
 uv run main.py --reviews path/to/reviews/dir \

@@ -26,7 +26,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--reviews", type=str, help="Path to reviews.")
     parser.add_argument("--responses", type=str, help="Path to review responses.")
-    parser.add_argument("--paper", type=str, default=None, help="Path to paper.")
+    parser.add_argument("--paper", type=str, default=None, help="Optional path to paper pdf file.")
     parser.add_argument("--n", type=int, default=8, help="Number of trials for judge LLM.")
     return parser.parse_known_args()[0]
 
